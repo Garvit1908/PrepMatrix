@@ -1,5 +1,6 @@
 const { PDFParse } = require("pdf-parse");
 const Resume = require("../models/resume.model");
+const { extractStructuredResume } = require("../utils/aiservice");
 
 const uploadResume = async (req, res) => {
     let parser = null;
@@ -32,12 +33,20 @@ const uploadResume = async (req, res) => {
             });
         }
 
+        let parsedData={};
+        try{
+            parsedData = await extractStructuredResume(rawText);
+        }catch(aierror){
+            console.log("Ai Parsing Error",aierror.message);
+        }
+
         // 5. Database me Resume record create karo
         const resume = await Resume.create({
             userId,
             filename,
             filesize,
             rawText,
+            parsedData,
             targetJobDescription: req.body?.jobDescription || null
         });
 
@@ -51,6 +60,7 @@ const uploadResume = async (req, res) => {
                 filename: resume.filename,
                 filesize: resume.filesize,
                 characterCount: rawText.length,
+                parsedData: resume.parsedData,
                 createdAt: resume.createdAt
             }
         });
@@ -68,6 +78,8 @@ const uploadResume = async (req, res) => {
         }
     }
 };
+
+
 
 module.exports = {
     uploadResume
